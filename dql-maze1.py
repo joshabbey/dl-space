@@ -13,3 +13,54 @@
 # No loss against 'actions' not used - example loss vector - [0,0,0,0.1]
 # Every X training runs, the target network should be updated with the agent NN
 # Learning is complete when the losses converge to zero
+
+# imports
+import numpy as np
+
+
+class maze(self, int height, int width):
+    def __init__(self, height, width):
+        self.h = height
+        self.w = width
+        self.size = [height,width]
+        self.maze = np.zeros((height,width))
+    
+    def updateMaze(self,int y, int x, str action):
+        
+        if action == 'up':
+            if y =! 0 or self.maze[y -1][x] != 9:
+                self.maze[y][x] =0
+                self.maze[y-1][x] = 1
+                
+                y = y-1
+        
+        if action == 'right':
+            if x =! self.width or self.maze[y][x+1] != 9:
+                self.maze[y][x] =0
+                self.maze[y][x+1] = 1
+                
+                x = x+1
+                
+        if action == 'down':
+            if y =! self.height or self.maze[y + 1][x] != 9:
+                self.maze[y][x] =0
+                self.maze[y+1][x] = 1
+                
+                y = y+1
+                
+        if action == 'left':
+            if x =! 0 or self.maze[y + 1][x] != 9:
+                self.maze[y][x] =0
+                self.maze[y+1][x] = 1
+                
+                x = x-1
+                
+        return y,x
+    
+    
+        
+        
+                
+        
+        
+    
