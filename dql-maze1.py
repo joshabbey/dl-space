@@ -49,13 +49,15 @@ class maze(self, int height, int width):
                 y = y+1
                 
         if action == 'left':
-            if x =! 0 or self.maze[y + 1][x] != 9:
+            if x =! 0 or self.maze[y][x-1] != 9:
                 self.maze[y][x] =0
-                self.maze[y+1][x] = 1
+                self.maze[y][x-1] = 1
                 
                 x = x-1
                 
         return y,x
+    
+    def getReward(self,int state[], int old_state[],)
     
     
         
