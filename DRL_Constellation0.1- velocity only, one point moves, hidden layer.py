@@ -79,7 +79,7 @@ delta_threshold = 1 # threshold distance between agents
 e = 0.5 #0.94 # e-greedy exploration factor - this starts low and gets higher the longer the algorithm runs
 # more exploration early, exploitation later
 
-lr = 0.000001 # learning rate
+lr = 0.000002 # learning rate
 
 randomChance = 0.9 # to add some stochastic behaviour
 
