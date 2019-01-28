@@ -15,8 +15,12 @@ import pandas as pd
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-#import helper
+from PIL import ImageFile
 
+# to help with truncated images
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+#import helper
 
 ### Get Dataset ###
 
@@ -36,7 +40,7 @@ classes = (class_data['Class'])
 class_tensor = torch.FloatTensor(classes)
 
 # Check if CUDA is available
-train_on_gpu = torch.cuda.is_available()
+train_on_gpu = 0 #torch.cuda.is_available()
 
 if not train_on_gpu:
     print ('CUDA is not available. Training on CPU...')
@@ -49,18 +53,18 @@ else:
 num_workers = 0
 # How many samples per batch to load
 batch_size = 20
-# Percentage of training set to use as validation
-valid_size = 0.2
+# Percentage of training set to use as validation and testing
+valid_size = 0.1
+# percentage of training set to use for testing - as the test data isn't labelled!
+test_size = 0.1
 
 data_dir_train = 'Train'
-
-data_dir_test = 'Test'
 
 transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))])
 
 train_data = datasets.ImageFolder(data_dir_train,transform = transform)
 
-test_data = datasets.ImageFolder(data_dir_test,transform = transform)
+print (train_data.__len__())
 
 # Will also need to access excel file and create a tensor of the labels for loss calculation
 
@@ -72,19 +76,25 @@ indices = list(range(num_train))
 
 # Can't shuffle as we need to track against tensor from excel
 
-split = int(np.floor(valid_size*num_train))
-train_idx, valid_idx = indices[split:], indices[:split]
+split_valid = int(np.floor((1-valid_size - test_size)*num_train))
+split_test =  int(np.floor((1 - test_size)*num_train))
+train_idx, valid_idx, test_idx = indices[:split_valid], indices[split_valid:split_test], indices[split_test:]
 
 # Define samplers for obtaining training and validation batches
 
 train_sampler = SubsetRandomSampler(train_idx)
 valid_sampler = SubsetRandomSampler(valid_idx)
+test_sampler = SubsetRandomSampler(valid_idx)
+
+print(len(train_idx))
+print(len(valid_idx))
+print(len(test_idx))
 
 # Prepare data loaders (combine dataset and sampler)
 
 train_loader = torch.utils.data.DataLoader(train_data,batch_size = batch_size, sampler = train_sampler, num_workers = num_workers)
 valid_loader = torch.utils.data.DataLoader(train_data, batch_size = batch_size, sampler = valid_sampler, num_workers = num_workers)
-test_loader =  torch.utils.data.DataLoader(test_data, batch_size = batch_size, num_workers = num_workers)
+test_loader =  torch.utils.data.DataLoader(train_data, batch_size = batch_size, sampler = test_sampler, num_workers = num_workers)
 
 """
 ### Visualise a batch of training data ###
@@ -157,19 +167,22 @@ class Net(nn.Module):
         x = x.view(-1,16*12*12)
         
         # Add a dropout layer
-        #x = self.dropout(x)
+        x = self.dropout(x)
         
         # Add first hidden layer, with relu activation
         x = (self.fc1(x))
         
         # Add a second dropout layer
-        #x = self.dropout(x)
+        x = self.dropout(x)
         
         # Add second hidden layer, with relu activation
         x = (self.fc2(x))
         
+        # Add a third dropout layer
+        x = self.dropout(x)
+        
         # Add third hidden layer, with relu activation
-        x = (self.fc3(x))
+        x = F.relu(self.fc3(x))
         
         return x
     
@@ -181,14 +194,14 @@ model = Net()
 # Specify loss function (categorical cross-entropy)
 criterion = nn.MSELoss()
 
-train_no = 50
-valid_no = 10
+train_no = 10 #7700
+valid_no = 2 #960
 
 # Specify Optimiser 
 optimiser = optim.SGD(model.parameters(),lr = 0.01)
 
 # Number of epochs to train the model
-n_epochs = 5
+n_epochs = 1
 
 valid_loss_min = np.Inf # Track change in validation loss
 
@@ -207,25 +220,35 @@ for epoch in range(1, n_epochs+1):
     
     model.train()
     i = 0
+    j = split_valid
     
     for q in range(train_no):
-    #for data, target in train_loader:    
+    #for data, target in train_loader:
+
+        print(i)
+        
+        dataiter = iter(train_loader)        
                 
         data, labels = dataiter.next()
         # move tensors to GPU if CUDA is available
         if train_on_gpu:
-            data, class_tensor = data.cuda(), class_tensor.cuda()
+            data, class_tensor, model = data.cuda(), class_tensor.cuda(), model.cuda()
         
         # Clear the gradients of all optimised variables
-        optimiser.zero_grad()      
+        optimiser.zero_grad()       
+                          
+        print(class_tensor[i:i+batch_size])
                 
         # Forward pass: compute predicted outputs by passing inputs to the model
-        output = model(data)      
+        
+        output = model(data) 
+        
+        print(output)
                 
         # Calculate the batch loss    
                 
-        loss = criterion(output, class_tensor[i:i+batch_size]) # This may not work       
-                
+        loss = criterion(output, class_tensor[i:i+batch_size])     
+                        
         # Backward pass: compute the gradient of the loss with respect to model parameters
         loss.backward()
         
@@ -237,25 +260,40 @@ for epoch in range(1, n_epochs+1):
         train_loss += loss.item()*data.size(0)
         
         i += batch_size        
-        
+      
     
     ### Validate the model ###
     model.eval()    
-    for q in range(valid_no):
+    for q in range(valid_no):      
+                
+        print(j)
+        
+        dataiter = iter(valid_loader)
         
         data,labels = dataiter.next()
         
         if train_on_gpu:
-            data,class_tensor = data.cuda(), class_tensor.cuda()
+            data,class_tensor, model = data.cuda(), class_tensor.cuda(), model.cuda()
+            
+        for i in range(20):
+        
+            (len(data[i][0][0]))
+            #print(len(data[i][0]))
+        
+        print(class_tensor[j:j+batch_size])
         
         # Forward pass: compute predicted outputs by passing inputs to the model
         output = model(data)
         
+        print(output)
+        
         # Calculate the batch loss        
-        loss = criterion(output, class_tensor[i:i+batch_size])
+        loss = criterion(output, class_tensor[j:j+batch_size])
         
         # Update average validation loss
-        valid_loss += loss.item()*data.size(0)         
+        valid_loss += loss.item()*data.size(0)
+
+        j += batch_size           
     
     
     # calculate average losses
@@ -263,8 +301,8 @@ for epoch in range(1, n_epochs+1):
     #valid_loss = valid_loss/len(valid_loader.dataset)
 
     train_loss = train_loss/(batch_size*train_no)
-    valid_loss = valid_loss/(batch_size*valid_no)      
-
+    valid_loss = valid_loss/(batch_size*valid_no) 
+       
     # print training/validation statistics 
     print('Epoch: {} \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(
         epoch, train_loss, valid_loss))  
