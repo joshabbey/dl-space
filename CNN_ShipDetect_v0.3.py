@@ -134,16 +134,19 @@ class Net(nn.Module):
         super(Net,self).__init__()
         
         #convolutional layer 1 (sees 768*768*3)
-        self.conv1 = nn.Conv2d(3,16,3,padding=1)
+        self.conv1 = nn.Conv2d(3,64,5,padding=2)
         
-        #convolutional layer 2 (sees 192*192*16)
-        self.conv2 = nn.Conv2d(16,32,3,padding=1)
+        #convolutional layer 2 (sees 768*768*64)
+        self.conv2 = nn.Conv2d(64,32,3,padding=1,stride =2)
         
-        # convolutional layer 3 (sees 48*48*32)
-        self.conv3 = nn.Conv2d(32,16,3,padding=1)    
+        # convolutional layer 3 (sees 384*384*32)
+        self.conv3 = nn.Conv2d(32,32,5,padding=1)
+        
+        # convolutional layer 4 (sees 384*384*32)
+        self.conv4 = nn.Conv2d(32,16,3,padding=1,stride=2) 
                         
         # max pooling layer
-        self.pool = nn.MaxPool2d(4,4)
+        self.pool = nn.MaxPool2d(3,3)
 
         # linear layer 1 (16*12*12 -> 750)        
         self.fc1 = nn.Linear(16*12*12,750)
@@ -159,9 +162,11 @@ class Net(nn.Module):
         
     def forward(self,x):
         # Add a sequence of convolutional and max pooling layers        
-        x = self.pool(self.conv1(x))
-        x = self.pool(self.conv2(x))
-        x = self.pool(self.conv3(x))
+        x = F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+                
+        x = F.relu(self.conv3(x)))
+        x = self.pool(F.relu(self.conv4(x)))
         
         # Flatten image output
         x = x.view(-1,16*12*12)
@@ -170,13 +175,13 @@ class Net(nn.Module):
         x = self.dropout(x)
         
         # Add first hidden layer, with relu activation
-        x = (self.fc1(x))
+        x = F.relu(self.fc1(x))
         
         # Add a second dropout layer
         x = self.dropout(x)
         
         # Add second hidden layer, with relu activation
-        x = (self.fc2(x))
+        x = F.relu(self.fc2(x))
         
         # Add a third dropout layer
         x = self.dropout(x)
