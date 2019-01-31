@@ -40,7 +40,7 @@ classes = (class_data['Class'])
 class_tensor = torch.FloatTensor(classes)
 
 # Check if CUDA is available
-train_on_gpu = torch.cuda.is_available()
+train_on_gpu = 0 #torch.cuda.is_available()
 
 if not train_on_gpu:
     print ('CUDA is not available. Training on CPU...')
@@ -52,7 +52,7 @@ else:
 # Number of subprocesses to use for data loading
 num_workers = 0
 # How many samples per batch to load
-batch_size = 1
+batch_size = 20
 # Percentage of training set to use as validation and testing
 valid_size = 0.1
 # percentage of training set to use for testing - as the test data isn't labelled!
@@ -134,64 +134,47 @@ class Net(nn.Module):
         super(Net,self).__init__()
         
         #convolutional layer 1 (sees 768*768*3)
-        self.conv1 = nn.Conv2d(3,64,5,padding=2)
+        self.conv1 = nn.Conv2d(3,16,3,padding=1)
         
-        #convolutional layer 2 (sees 768*768*64)
-        self.conv2 = nn.Conv2d(64,32,3,padding=1,stride =2)
+        #convolutional layer 2 (sees 192*192*16)
+        self.conv2 = nn.Conv2d(16,32,3,padding=1)
         
-        # convolutional layer 3 (sees 128*128*32)
-        self.conv3 = nn.Conv2d(32,32,5,padding=2)
-        
-        # convolutional layer 4 (sees 128*128*32)
-        self.conv4 = nn.Conv2d(32,16,3,padding=1,stride=2) 
+        # convolutional layer 3 (sees 48*48*32)
+        self.conv3 = nn.Conv2d(32,64,3,padding=1)    
                         
-        # max pooling layer 1
-        self.pool1 = nn.MaxPool2d(3,3)
-        
-        # max pooling layer 2
-        self.pool2 = nn.MaxPool2d(4,4)
+        # max pooling layer
+        self.pool = nn.MaxPool2d(4,4)
 
         # linear layer 1 (16*12*12 -> 750)        
-        self.fc1 = nn.Linear(16*16*16,750)
+        self.fc1 = nn.Linear(64*12*12,750)
         
-        #linear layer 2 (250 -> 1)
-        self.fc2 = nn.Linear(750,100)
-        
-        #linear layer 3 (250 -> 1)
-        self.fc3 = nn.Linear(100,1)
-        
+        #linear layer 2 (750 -> 1)
+        self.fc2 = nn.Linear(750,1)     
+                
         # Dropout layer (p =0.25)
         self.dropout = nn.Dropout(0.25)
         
     def forward(self,x):
         # Add a sequence of convolutional and max pooling layers        
-        x = F.relu(self.conv1(x))
-        x = self.pool1(F.relu(self.conv2(x)))
-                
-        x = F.relu(self.conv3(x))
-        x = self.pool2(F.relu(self.conv4(x)))
+        x = self.pool(self.conv1(x))
+        x = self.pool(self.conv2(x))
+        x = self.pool(self.conv3(x))
         
         # Flatten image output
-        x = x.view(-1,16*16*16)
+        x = x.view(-1,64*12*12)
         
         # Add a dropout layer
         x = self.dropout(x)
         
         # Add first hidden layer, with relu activation
-        x = F.relu(self.fc1(x))
+        x = (self.fc1(x))
         
         # Add a second dropout layer
         x = self.dropout(x)
         
         # Add second hidden layer, with relu activation
-        x = F.relu(self.fc2(x))
-        
-        # Add a third dropout layer
-        x = self.dropout(x)
-        
-        # Add third hidden layer, with relu activation
-        x = F.relu(self.fc3(x))
-        
+        x = (self.fc2(x))      
+                
         return x
     
 
@@ -202,8 +185,8 @@ model = Net()
 # Specify loss function (categorical cross-entropy)
 criterion = nn.MSELoss()
 
-train_no = 25000 #7700
-valid_no = 1000 #960
+train_no = 100 #7700
+valid_no = 20 #960
 
 # Specify Optimiser 
 optimiser = optim.SGD(model.parameters(),lr = 0.01)
@@ -280,8 +263,13 @@ for epoch in range(1, n_epochs+1):
         data,labels = dataiter.next()
         
         if train_on_gpu:
-            data,class_tensor, model = data.cuda(), class_tensor.cuda(), model.cuda()          
-             
+            data,class_tensor, model = data.cuda(), class_tensor.cuda(), model.cuda()
+            
+        for i in range(20):
+        
+            (len(data[i][0][0]))
+            #print(len(data[i][0]))        
+                
         # Forward pass: compute predicted outputs by passing inputs to the model
         output = model(data)
 
