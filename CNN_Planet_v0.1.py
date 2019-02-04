@@ -25,26 +25,12 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 ### Get Dataset ###
 
-# Change directory for ship images
+# Change directory for json
 os.chdir("Y:\Programmes\SpAIce\Ship Detection\Data\Planet")
 
+# open json file
 with open('shipsnet.json') as json_file:
-    data = json.load(json_file)
-    print (data)
-
-
-
-"""
-
-# Assign spreadsheet file name tol 'file'
-file = 'train_ship_segmentations_v2.xlsx'
-
-# Load spreadsheet data into class vector
-class_data = pd.read_excel(file)
-
-classes = (class_data['Class'])
-
-class_tensor = torch.FloatTensor(classes)
+    class_data = json.load(json_file) 
 
 # Check if CUDA is available
 train_on_gpu = torch.cuda.is_available()
@@ -55,6 +41,9 @@ else:
     print ('CUDA is available! Training on GPU...')
     
 # Load and prepare the data
+    
+# Change directory for ship images
+os.chdir("Y:\Programmes\SpAIce\Ship Detection\Data\Planet")
 
 # Number of subprocesses to use for data loading
 num_workers = 0
@@ -65,15 +54,13 @@ valid_size = 0.1
 # percentage of training set to use for testing - as the test data isn't labelled!
 test_size = 0.1
 
-data_dir_train = 'Train'
+data_dir_train = 'shipsnet'
 
 transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))])
 
 train_data = datasets.ImageFolder(data_dir_train,transform = transform)
 
 print (train_data.__len__())
-
-# Will also need to access excel file and create a tensor of the labels for loss calculation
 
 # Obtain training indices that will be used for validation
 
@@ -103,36 +90,30 @@ train_loader = torch.utils.data.DataLoader(train_data,batch_size = batch_size, s
 valid_loader = torch.utils.data.DataLoader(train_data, batch_size = batch_size, sampler = valid_sampler, num_workers = num_workers)
 test_loader =  torch.utils.data.DataLoader(train_data, batch_size = batch_size, sampler = test_sampler, num_workers = num_workers)
 
-
 ### Visualise a batch of training data ###
 
 # helper function to (unnormalise and) display an image
 
 def imshow(img):
-    #img = img / 2 + 0.5 # unnormalize    
-    plt.imshow(np.transpose(img,(1,2,0))) # convert from Tensor Image
+    plt.imshow(img)
 
 # obtain one batch of training images
 dataiter = iter(train_loader)
-images,labels = dataiter.next()
+image,label = dataiter.next()
 
-#print (images.size())
+print (image[0].size())
 
-images = images.numpy() #convert images to numpy for display
+image = image[0][1].numpy() #convert images to numpy for display
 
 # Plot the images in the batch, along with corresponding label
+fig = plt.figure()
 
-fig = plt.figure(figsize =(25,4))
+#display image
+imshow(image)
 
-#display images
+# Images are 80*80*3 (RGB)
 
-for idx in np.arange(0):
-    ax = fig.add_subplot(2, 20/2, idx+1, xticks=[], yticks=[])
-    imshow(images[idx])
-  
-
-# Images are 768*768*3 (RGB)
-
+"""
 
 ### Define the CNN architecture ###
  
@@ -140,17 +121,17 @@ class Net(nn.Module):
     def __init__(self):
         super(Net,self).__init__()
         
-        #convolutional layer 1 (sees 768*768*3)
+        #convolutional layer 1 (sees 80*80*3)
         self.conv1 = nn.Conv2d(3,64,5,padding=2)
         
         #convolutional layer 2 (sees 768*768*64)
-        self.conv2 = nn.Conv2d(64,32,3,padding=1,stride =2)
+        self.conv2 = nn.Conv2d(64,32,3,padding=1)
         
         # convolutional layer 3 (sees 128*128*32)
         self.conv3 = nn.Conv2d(32,32,5,padding=2)
         
         # convolutional layer 4 (sees 128*128*32)
-        self.conv4 = nn.Conv2d(32,16,3,padding=1,stride=2) 
+        self.conv4 = nn.Conv2d(32,16,3,padding=1) 
                         
         # max pooling layer 1
         self.pool1 = nn.MaxPool2d(3,3)
