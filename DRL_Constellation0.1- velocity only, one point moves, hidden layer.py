@@ -21,13 +21,18 @@ Created on Fri Jul 20 07:14:54 2018
 
 # assume time step of 1 sec for all
 
+import torch
+from torch.utils.data.sampler import SubsetRandomSampler
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
 import numpy as np
 import numpy.random
 import random
 import matplotlib
 from matplotlib import pyplot as plt
 
-### the list of all possible actions. accelerations are binary not continous. A continous action space is the realm of an actor critic network
+### the list of all possible actions. accelerations are binary not continous. A continous action space is the realm of an policy or actor critic network
 actions = [[0.1],[0],[-0.1]]
 
 act = 0 # initialise act - from 0-2

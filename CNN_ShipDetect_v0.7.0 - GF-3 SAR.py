@@ -52,7 +52,7 @@ else:
 # Number of subprocesses to use for data loading
 num_workers = 0
 # How many samples per batch to load
-batch_size = 5
+batch_size = 1
 # Percentage of training set to use as validation and testing
 valid_size = 0.1
 # percentage of training set to use for testing - as the test data isn't labelled!
@@ -134,42 +134,63 @@ class Net(nn.Module):
         super(Net,self).__init__()
         
         #convolutional layer 1 (sees 768*768*3)
-        self.conv1 = nn.Conv2d(3,16,3,padding=1)
+        self.conv1 = nn.Conv2d(3,64,5,padding=2) # pool
         
-        #convolutional layer 2 (sees 192*192*16)
-        self.conv2 = nn.Conv2d(16,32,3,padding=1)
+        #convolutional layer 2 (sees 256*256*32)
+        self.conv2 = nn.Conv2d(64,64,5,padding=0) # pool
         
-        # convolutional layer 3 (sees 48*48*32)
-        self.conv3 = nn.Conv2d(32,64,3,padding=1)
+        # convolutional layer 3 (sees 84*84*64)
+        self.conv3 = nn.Conv2d(64,128,3,padding=1) # pool     
+                               
+        # convolutional layer 4 (sees 28*28*128)
+        self.conv4 = nn.Conv2d(128,128,3,padding=1)
+
+        # convolutional layer 5 (sees 28*28*128)
+        self.conv5 = nn.Conv2d(128,128,3,padding=0)
+
+        # convolutional layer 6 (sees 26*26*128)
+        self.conv6 = nn.Conv2d(128,128,3,padding=0)
         
-        # convolutional layer 3 (sees 12*12*64)
-        self.conv4 = nn.Conv2d(64,64,3,padding=1) 
-                                        
+        # convolutional layer 6 (sees 24*24*128)
+        self.conv7 = nn.Conv2d(128,128,3,padding=1) # pool     
+             
         # max pooling layer
-        self.pool = nn.MaxPool2d(4,4)
+        self.pool = nn.MaxPool2d(3,3)
                 
-        #linear layer 2 (3*3*64-> 1)
-        self.fc1 = nn.Linear(3*3*64,1)     
+        #linear layer 1 (12*12*16-> 100)
+        self.fc1 = nn.Linear(8*8*128,1024)
+        
+        #linear layer 1 (8*8*16-> 100)
+        self.fc2 = nn.Linear(1024,1) 
                 
         # Dropout layer (p =0.25)
         self.dropout = nn.Dropout(0.25)
         
     def forward(self,x):
         # Add a sequence of convolutional and max pooling layers        
-        x = self.pool(self.conv1(x))
-        x = self.pool(self.conv2(x))
-        x = self.pool(self.conv3(x))        
-        x = self.pool(self.conv4(x))
+        x = self.pool(F.relu(self.conv1(x))) 
+        x = self.pool(F.relu(self.conv2(x))) 
+        x = self.pool(F.relu(self.conv3(x)))        
+        x = (F.relu(self.conv4(x))) 
+        x = (F.relu(self.conv5(x))) 
+        x = (F.relu(self.conv6(x))) 
+        x = self.pool(F.relu(self.conv7(x))) 
         
         # Flatten image output
-        x = x.view(-1,64*3*3)
+        x = x.view(-1,8*8*128)
         
         # Add a dropout layer
         x = self.dropout(x)
         
         # Add first hidden layer, with relu activation
-        x = (self.fc1(x))       
-                        
+        x = F.relu(self.fc1(x))
+        
+        # Add a dropout layer
+        x = self.dropout(x)
+        
+        # Add first hidden layer, with relu activation
+        x = (self.fc2(x))       
+                                
         return x
     
 
@@ -180,8 +201,8 @@ model = Net()
 # Specify loss function (categorical cross-entropy)
 criterion = nn.MSELoss()
 
-train_no = 1 #7700
-valid_no = 1 #960
+train_no = 1000 #7700
+valid_no = 100 #960
 
 # Specify Optimiser 
 optimiser = optim.SGD(model.parameters(),lr = 0.01)
