@@ -122,23 +122,29 @@ def get_reward(delta,state):
     
     r = 0        
     
-    if delta <= 1.2 and delta >= 0.8:
+    if delta <= 1.1 and delta >= 0.9:
         r = 0.1
-                      
+    else:
+        r = -0.01    
+            
     return r
-
 
 ### This is where the nuts and bolts of DQL happens - need to check this against other code
 def experience_replay(q,q1,r,act):               
            
-    targetQ = torch.tensor([0,0,0,0,0,0,0,0,0])
+    maxQ1 = torch.max(q1) # Set max q1 - target value
+                 
+    targetQ = 0 # Ready the target vector           
+        
+    targetQ = (r + reward_discount*maxQ1) # Set the target vector - only the action chosen is updated          
+        
+    # This only updates using the one 'loss'
     
-    targetQ = targetQ.float()
-
-    for i in range(len(targetQ)):
-        targetQ[i] = q1[i]*reward_discount + r            
-                        
-    return targetQ
+    target = torch.tensor([q[0],q[1],q[2],q[3],q[4],q[5],q[6],q[7],q[8]])
+          
+    target[act] = targetQ      
+           
+    return target
 
 ### Define the NN architecture ###
  
@@ -148,15 +154,15 @@ class Net(nn.Module):
         
         # state input of size 2               
         # linear layer 1 (2 -> 30)        
-        self.fc1 = nn.Linear(4,30)       
+        self.fc1 = nn.Linear(4,15)       
                 
         #linear layer 2 (30 -> 20)
-        self.fc2 = nn.Linear(30,20) 
+        self.fc2 = nn.Linear(15,12) 
                 
         #linear layer 3 (20 -> 9)
-        self.fc3 = nn.Linear(20,9)        
+        self.fc3 = nn.Linear(12,9)               
         
-        # output of size 3 - the quality of each move
+        # output of size 9 - the quality of each move
         
         # Dropout layer (p =0.25)
         self.dropout = nn.Dropout(0.2)
@@ -164,20 +170,16 @@ class Net(nn.Module):
     def forward(self,x):              
                 
         # Add input layer to first hidden layer, with relu activation
-        x = F.relu(self.fc1(x))
-        
+        x = F.relu(self.fc1(x))        
         # Add a first dropout layer
-        x = self.dropout(x)
-        
+        x = self.dropout(x)        
         # Add first hidden layer to second hidden layer, with relu activation
-        x = F.relu(self.fc2(x))
-        
+        x = F.relu(self.fc2(x))        
         # Add a second dropout layer
-        x = self.dropout(x)
-        
-        # Add second hidden layer to output layer
-        x = self.fc3(x)               
-               
+        x = self.dropout(x)        
+        # Add second hidden layer to third layer
+        x = self.fc3(x)     
+                     
         return x
     
 
@@ -230,7 +232,7 @@ for epoch in range(n_epochs):
                 
         delta = 0 # reset         
         
-        while j <50 and delta <1.5:        
+        while j <50 and delta <2:        
                
             r = 0 # reset reward
             
