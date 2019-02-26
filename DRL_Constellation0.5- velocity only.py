@@ -36,7 +36,7 @@ action = [] # initialise action vector - action = actions[act]
 
 r = 0 # initiliase reward
 
-state = [3,0,1,0] #starting state of the two partivles. p1,v1,a1,p2,v2,a2
+state = [3,0,1,0] #starting state of the two particles. p1,v1,a1,p2,v2,a2
 
 #w = numpy.ones((len(actions),len(state)))
 

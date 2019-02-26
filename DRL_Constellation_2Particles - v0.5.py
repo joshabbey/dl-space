@@ -41,22 +41,20 @@ else:
     print ('CUDA is available! Training on GPU...')
 
 ### the list of all possible actions. accelerations are binary not continous. A continous action space is the realm of an policy network
-actions = torch.tensor([[0.1],[0],[-0.1]])
+actions = torch.tensor([[0.1,0.1],[0,0],[-0.1,-0.1],[0.1,0],[0,0.1],[-0.1,0],[0,-0.1],[0.1,-0.1],[-0.1,0.1]])
 
-act = 0 # initialise act - from 0-2
+act = 0 # initialise act - from 0-8
 
 action = 0 # initialise action vector - action = actions[act]
 
 r = 0 # initialise reward
-
-state = torch.tensor([0.0,0.0]) #declaring state of the two particles vector. p1,v1
 
 # Two networks will need to be created - one the target, the other the updated
 # Initialise the networks to start as the same
 
 maxQ1 = 0 # initiliase maxQ 
 
-targetQ = torch.tensor([0,0,0]) # initialise target q
+targetQ = torch.tensor([0,0,0,0,0,0,0,0,0]) # initialise target q
 
 reward_discount = 0.99
 
@@ -72,7 +70,7 @@ lr = 0.001 # learning rate
 
 randomChance = 0.95 # to add some stochastic behaviour
 
-randomSet = torch.tensor([0.1,0,-0.1])
+randomSet = torch.tensor([[0.1,0.1],[0,0],[-0.1,-0.1],[0.1,0],[0,0.1],[-0.1,0],[0,-0.1],[0.1,-0.1],[-0.1,0.1]])
 
 memories = [] # all previous memories
 
@@ -91,24 +89,32 @@ def discount_rewards(rewards):
     return discounted_r
 
 def update_state(state,action):
-    
-    new_state = [0,0]  #[0,0,state[0],state[1]]
-    delta = 0
-    
-    # Stochastically update velocities    
+            
+    # Stochastically update velocities
+    """    
     if np.random.rand(1) < randomChance: 
         new_state[1] = state[1] + action[0] 
     else:
-        new_state[1] = state[1] + action[0] + numpy.random.choice(randomSet)             
+        new_state[1] = state[1] + action[0] + numpy.random.choice(randomSet)        
+    """             
        
-    # Deterministically update velocities         
-    #new_state[1] = state[1] + action[0]       
-        
+    new_state = torch.tensor([0.0,0.0,0.0,0.0])
+    delta = 0
+    
+    #update velocities
+    new_state[1] = state[1] + action[0]
+    new_state[3] = state[3] + action[1]    
+    
     #update positions
-    new_state[0] = (state[0] + new_state[1])
-    state = torch.tensor(new_state)       
-    delta = abs(state[0])
-                  
+    new_state[0] = (state[0] + new_state[1]) %10
+    new_state[2] = (state[2] + new_state[3]) %10
+    
+    state = new_state
+    
+    delta = min(abs(state[0] - state[2]), abs((state[0]-10) - (state[2])),abs((state[0]) - (state[2]-10)))
+    
+    #delta = abs(state[0] - state[2])  
+                      
     return state, delta
     
 
@@ -116,30 +122,23 @@ def get_reward(delta,state):
     
     r = 0        
     
-    if delta <= 1.0:
-        r = 0.05
-    else:
-        r = -1
-                       
+    if delta <= 1.2 and delta >= 0.8:
+        r = 0.1
+                      
     return r
 
 
 ### This is where the nuts and bolts of DQL happens - need to check this against other code
-def experience_replay(q,q1,r,act):
-    
-    maxQ1 = torch.max(q1) # Set max q1 - target value
-                 
-    targetQ = 0 # Ready the target vector           
-        
-    targetQ = (r + reward_discount*maxQ1) # Set the target vector - only the action chosen is updated          
-        
-    # This only updates using the one 'loss'
-    
-    target = torch.tensor([q[0],q[1],q[2]])
-          
-    target[act] = targetQ      
+def experience_replay(q,q1,r,act):               
            
-    return target
+    targetQ = torch.tensor([0,0,0,0,0,0,0,0,0])
+    
+    targetQ = targetQ.float()
+
+    for i in range(len(targetQ)):
+        targetQ[i] = q1[i]*reward_discount + r            
+                        
+    return targetQ
 
 ### Define the NN architecture ###
  
@@ -147,16 +146,15 @@ class Net(nn.Module):
     def __init__(self):
         super(Net,self).__init__()
         
-        # state input of size 2
-               
-        # linear layer 1 (2 -> 20)        
-        self.fc1 = nn.Linear(2,20)       
+        # state input of size 2               
+        # linear layer 1 (2 -> 30)        
+        self.fc1 = nn.Linear(4,30)       
                 
-        #linear layer 2 (20 -> 9)
-        self.fc2 = nn.Linear(20,9)
-        
-        #linear layer 3 (9 -> 3)
-        self.fc3 = nn.Linear(9,3)
+        #linear layer 2 (30 -> 20)
+        self.fc2 = nn.Linear(30,20) 
+                
+        #linear layer 3 (20 -> 9)
+        self.fc3 = nn.Linear(20,9)        
         
         # output of size 3 - the quality of each move
         
@@ -214,13 +212,13 @@ for epoch in range(n_epochs):
     e = 0.75 # e-greedy exploration factor - this starts low and gets higher the longer the algorithm runs
         # more exploration early, exploitation later        
     
-    for games in range(200):
+    for games in range(100):
     
         j = 0 # Moves counter
         
         totalReward = 0 # Reward counter
         
-        state = torch.tensor([0,0]) # [current position, current velocity]
+        state = torch.tensor([0.0,0.0,0.0,0.0]) # [current position, current velocity]
 
         state = state.float()          
         
@@ -232,13 +230,13 @@ for epoch in range(n_epochs):
                 
         delta = 0 # reset         
         
-        while delta <= 1 and j <100:        
+        while j <50 and delta <1.5:        
                
             r = 0 # reset reward
             
             # feed forward         
                                 
-            q = model_update(state)                                 
+            q = model_update(state)                                            
            
             #print()
             if np.random.rand(1) < e: # e-greedy action selection
@@ -250,12 +248,14 @@ for epoch in range(n_epochs):
             
             stateOld = state # keep old state for memory                  
                     
-            state, delta =  update_state(state,action) # update state and calculate delta       
-                    
-            r = get_reward(delta,state) # get reward                   
+            state, delta =  update_state(state,action) # update state and calculate delta
+
+            #print(state)            
+                                
+            r = get_reward(delta,state) # get reward                             
             
-            q1 = model_target(state) #re-calc new q values based on target network   
-                                        
+            q1 = model_target(state) #re-calc new q values based on target network          
+                                                   
             memories_recent.append([stateOld,q1,r,state,q,act]) # record memories for experience replay               
     
             rewards.append(r)
@@ -299,8 +299,8 @@ for epoch in range(n_epochs):
                 target = experience_replay(batch[4],batch[1],batch[2],batch[5]) # calculate target for memory
             
                 # Prediction from memory
-                prediction = batch[4]
-            
+                prediction = batch[4]          
+                            
                 # move tensors to GPU if CUDA is available
                 #if train_on_gpu:
                 #   prediction, target, model_update = prediction.cuda(), target.cuda(), model_update.cuda()
@@ -315,7 +315,7 @@ for epoch in range(n_epochs):
                 loss.backward(retain_graph=True)
         
                 # Perform a single optimisation step
-                #optimiser.step()
+                optimiser.step()
 
                 # Track Losses
                 losses.append(loss)               
@@ -337,8 +337,8 @@ for epoch in range(n_epochs):
                 target = experience_replay(batch[4],batch[1],batch[2],batch[5]) # calculate target for memory
             
                 # Prediction from memory
-                prediction = batch[4]
-            
+                prediction = batch[4]            
+                            
                 # move tensors to GPU if CUDA is available
                 #if train_on_gpu:
                 #   prediction, target, model_update = prediction.cuda(), target.cuda(), model_update.cuda()
@@ -347,13 +347,13 @@ for epoch in range(n_epochs):
                 optimiser.zero_grad()            
             
                 # Calculate the batch loss                        
-                loss = criterion(prediction,target)                                             
+                loss = criterion(prediction,target)                                                            
                                   
                 # Backward pass: compute the gradient of the loss with respect to model parameters
                 loss.backward(retain_graph=True)
         
                 # Perform a single optimisation step
-                #optimiser.step()
+                optimiser.step()
 
                 # Track Losses
                 losses.append(loss)               

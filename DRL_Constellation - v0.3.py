@@ -95,14 +95,16 @@ def update_state(state,action):
     new_state = [0,0]  #[0,0,state[0],state[1]]
     delta = 0
     
-    # Stochastically update velocities    
+    # Stochastically update velocities
+    """    
     if np.random.rand(1) < randomChance: 
         new_state[1] = state[1] + action[0] 
     else:
-        new_state[1] = state[1] + action[0] + numpy.random.choice(randomSet)             
+        new_state[1] = state[1] + action[0] + numpy.random.choice(randomSet)
+    """             
        
     # Deterministically update velocities         
-    #new_state[1] = state[1] + action[0]       
+    new_state[1] = state[1] + action[0]       
         
     #update positions
     new_state[0] = (state[0] + new_state[1])
@@ -125,21 +127,16 @@ def get_reward(delta,state):
 
 
 ### This is where the nuts and bolts of DQL happens - need to check this against other code
-def experience_replay(q,q1,r,act):
-    
-    maxQ1 = torch.max(q1) # Set max q1 - target value
-                 
-    targetQ = 0 # Ready the target vector           
-        
-    targetQ = (r + reward_discount*maxQ1) # Set the target vector - only the action chosen is updated          
-        
-    # This only updates using the one 'loss'
-    
-    target = torch.tensor([q[0],q[1],q[2]])
-          
-    target[act] = targetQ      
+def experience_replay(q,q1,r,act):               
            
-    return target
+    targetQ = torch.tensor([0,0,0])
+    
+    targetQ = targetQ.float()
+
+    for i in range(len(targetQ)):
+        targetQ[i] = q1[i]*reward_discount + r            
+                        
+    return targetQ
 
 ### Define the NN architecture ###
  
@@ -194,7 +191,7 @@ criterion = nn.MSELoss()
 optimiser = optim.SGD(model_update.parameters(),lr = 0.001,momentum=0.1) # can add momentum if needed
 
 # Number of epochs to train the model
-n_epochs = 10
+n_epochs = 50
 
 #########################
 ### Train the network ###
@@ -214,7 +211,7 @@ for epoch in range(n_epochs):
     e = 0.75 # e-greedy exploration factor - this starts low and gets higher the longer the algorithm runs
         # more exploration early, exploitation later        
     
-    for games in range(200):
+    for games in range(100):
     
         j = 0 # Moves counter
         
@@ -299,8 +296,8 @@ for epoch in range(n_epochs):
                 target = experience_replay(batch[4],batch[1],batch[2],batch[5]) # calculate target for memory
             
                 # Prediction from memory
-                prediction = batch[4]
-            
+                prediction = batch[4]          
+                            
                 # move tensors to GPU if CUDA is available
                 #if train_on_gpu:
                 #   prediction, target, model_update = prediction.cuda(), target.cuda(), model_update.cuda()
@@ -315,7 +312,7 @@ for epoch in range(n_epochs):
                 loss.backward(retain_graph=True)
         
                 # Perform a single optimisation step
-                #optimiser.step()
+                optimiser.step()
 
                 # Track Losses
                 losses.append(loss)               
@@ -337,8 +334,8 @@ for epoch in range(n_epochs):
                 target = experience_replay(batch[4],batch[1],batch[2],batch[5]) # calculate target for memory
             
                 # Prediction from memory
-                prediction = batch[4]
-            
+                prediction = batch[4]            
+                            
                 # move tensors to GPU if CUDA is available
                 #if train_on_gpu:
                 #   prediction, target, model_update = prediction.cuda(), target.cuda(), model_update.cuda()
@@ -347,13 +344,13 @@ for epoch in range(n_epochs):
                 optimiser.zero_grad()            
             
                 # Calculate the batch loss                        
-                loss = criterion(prediction,target)                                             
+                loss = criterion(prediction,target)                                                            
                                   
                 # Backward pass: compute the gradient of the loss with respect to model parameters
                 loss.backward(retain_graph=True)
         
                 # Perform a single optimisation step
-                #optimiser.step()
+                optimiser.step()
 
                 # Track Losses
                 losses.append(loss)               
