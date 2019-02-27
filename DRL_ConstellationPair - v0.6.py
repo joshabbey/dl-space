@@ -108,10 +108,10 @@ def get_reward(delta,state):
     
     r = 0        
     
-    if delta <= 1:
-        r = 0.1
+    if delta >=1 and delta <=2:  
+        r = 1
     else:
-        r = -5
+        r = -0.1
     return r
 
 ### This is where the nuts and bolts of DQL happens - need to check this against other code
@@ -129,7 +129,7 @@ def experience_replay(q,q1,r,act):
           
     target[act] = targetQ      
            
-    return target
+    return target 
 
 ### Define the NN architecture ###
  
@@ -238,7 +238,7 @@ for epoch in range(n_epochs):
                 
         delta = 0 # reset         
         
-        while j <50 and delta <=1:        
+        while j <50:        
                
             r = 0 # reset reward
             
